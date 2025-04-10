@@ -9,7 +9,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -33,33 +32,37 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
 
-		try {
-			final String authorizationHeader = request.getHeader("Authorization");
+		final String authorizationHeader = request.getHeader("Authorization");
 
-			System.out.println("JWT Token ======>>>>> " + authorizationHeader);
+		System.out.println("JWT Token ======>>>>> " + authorizationHeader);
 
-			String username = null;
-			String jwtToken = null;
+		if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
 
-			if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-				jwtToken = authorizationHeader.substring(7);
-				username = jwtUtil.extractUsername(jwtToken);
+			String jwtToken = authorizationHeader.substring(7);
+
+			try {
+				String username = jwtUtil.extractUsername(jwtToken);
+
+				if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+					if (jwtUtil.validateToken(jwtToken)) {
+
+						UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
+
+						UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+								userDetails, null, userDetails.getAuthorities());
+
+						authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+						SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+					}
+				}
+			} catch (JwtException e) {
+				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+				response.getWriter().write("Token is invalid... plz login again..!!");
+				return;
 			}
-
-			if (username != null && jwtUtil.validateToken(jwtToken)) {
-				UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
-				UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-						userDetails, null, userDetails.getAuthorities());
-				authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-				SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-			}
-
-			filterChain.doFilter(request, response);
-		} catch (JwtException | AuthenticationException e) {
-			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-			response.getWriter().write("Token is invalid... plz login again..!!");
-			response.getWriter().flush();
-			response.getWriter().close();
 		}
+		filterChain.doFilter(request, response);
 	}
 }
