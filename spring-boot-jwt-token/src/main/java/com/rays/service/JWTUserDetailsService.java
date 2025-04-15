@@ -35,6 +35,5 @@ public class JWTUserDetailsService implements UserDetailsService {
 
 		return User.builder().username(user.getLoginId()).password(passwordEncoder().encode(user.getPassword()))
 				.roles("USER").build();
-
 	}
 }

@@ -17,8 +17,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.rays.service.JWTUserDetailsService;
 
-import io.jsonwebtoken.JwtException;
-
 @Component
 public class JWTRequestFilter extends OncePerRequestFilter {
 
@@ -41,23 +39,24 @@ public class JWTRequestFilter extends OncePerRequestFilter {
 			String jwtToken = authorizationHeader.substring(7);
 
 			try {
+				if (!jwtUtil.validateToken(jwtToken)) {
+					throw new Exception("Invalid JWT token");
+				}
+
 				String username = jwtUtil.extractUsername(jwtToken);
 
 				if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-					if (jwtUtil.validateToken(jwtToken)) {
+					UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
 
-						UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(username);
+					UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+							userDetails, null, userDetails.getAuthorities());
 
-						UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-								userDetails, null, userDetails.getAuthorities());
+					authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-						authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-						SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-					}
+					SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 				}
-			} catch (JwtException e) {
+			} catch (Exception e) {
 				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 				response.getWriter().write("Token is invalid... plz login again..!!");
 				return;

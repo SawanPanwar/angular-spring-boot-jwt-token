@@ -1,6 +1,5 @@
 package com.rays.ctl;
 
-import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +28,7 @@ public class LoginCtl extends BaseCtl {
 	private JWTUtil jwtUtil;
 
 	@PostMapping("login")
-	public ORSResponse login(@RequestBody @Valid LoginForm form, BindingResult bindingResult, HttpSession session) {
+	public ORSResponse login(@RequestBody @Valid LoginForm form, BindingResult bindingResult) {
 
 		ORSResponse res = validate(bindingResult);
 
